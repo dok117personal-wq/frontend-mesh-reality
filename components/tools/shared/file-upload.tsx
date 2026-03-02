@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import Image from "next/image";
+import React, { useState, useEffect, useRef } from "react";
+import { ppmToDataUrl, isPPMFile } from "@/lib/ppm-preview";
 
 interface FileUploadProps {
   title: string;
@@ -26,13 +26,44 @@ const FileUpload = ({
 }: FileUploadProps) => {
   const [isDragging, setIsDragging] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  
+  const [previewUrls, setPreviewUrls] = useState<Record<number, string>>({});
+
   // Sync with external selected files if provided
   useEffect(() => {
     if (externalSelectedFiles) {
       setSelectedFiles(externalSelectedFiles);
     }
   }, [externalSelectedFiles]);
+
+  // Resolve preview URL for each file (PPM → data URL, else object URL)
+  const revokeRef = useRef<string[]>([]);
+  useEffect(() => {
+    revokeRef.current = [];
+    let cancelled = false;
+    setPreviewUrls({});
+    selectedFiles.forEach(async (file, index) => {
+      try {
+        if (isPPMFile(file)) {
+          const dataUrl = await ppmToDataUrl(file);
+          if (cancelled) return;
+          if (dataUrl) {
+            setPreviewUrls(prev => ({ ...prev, [index]: dataUrl }));
+            return;
+          }
+        }
+        const url = URL.createObjectURL(file);
+        revokeRef.current.push(url);
+        if (!cancelled) setPreviewUrls(prev => ({ ...prev, [index]: url }));
+      } catch {
+        if (!cancelled) setPreviewUrls(prev => ({ ...prev, [index]: "" }));
+      }
+    });
+    return () => {
+      cancelled = true;
+      revokeRef.current.forEach(u => URL.revokeObjectURL(u));
+      revokeRef.current = [];
+    };
+  }, [selectedFiles]);
   
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -72,19 +103,23 @@ const FileUpload = ({
   };
   
   const renderFilePreview = (file: File, index: number) => {
-    const isImage = file.type.startsWith('image/');
-    
+    const isImage = file.type.startsWith("image/") || isPPMFile(file);
+    const previewUrl = previewUrls[index];
+
     return (
       <div key={`${file.name}-${index}`} className="flex items-center justify-between bg-gray-800/50 p-2 rounded-md mb-2">
         <div className="flex items-center">
           {isImage ? (
-            <div className="w-10 h-10 relative mr-2 overflow-hidden rounded">
-              <img
-                src={URL.createObjectURL(file)}
-                alt={file.name}
-                className="w-full h-full object-cover"
-                onLoad={() => URL.revokeObjectURL(URL.createObjectURL(file))}
-              />
+            <div className="w-10 h-10 relative mr-2 overflow-hidden rounded bg-gray-700">
+              {previewUrl ? (
+                <img
+                  src={previewUrl}
+                  alt={file.name}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <span className="text-lg">🖼</span>
+              )}
             </div>
           ) : (
             <div className="w-10 h-10 bg-gray-700 rounded flex items-center justify-center mr-2">

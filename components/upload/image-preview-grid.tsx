@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ppmToDataUrl, isPPMFile } from "@/lib/ppm-preview";
 
 interface ImagePreviewGridProps {
   images: File[];
@@ -10,20 +11,52 @@ interface ImagePreviewGridProps {
 }
 
 export function ImagePreviewGrid({ images, onRemove }: ImagePreviewGridProps) {
-  const [objectUrls, setObjectUrls] = useState<string[]>([]);
+  const [previewUrls, setPreviewUrls] = useState<string[]>([]);
   const [loadingStates, setLoadingStates] = useState<boolean[]>([]);
   const [errorStates, setErrorStates] = useState<boolean[]>([]);
 
   useEffect(() => {
-    // Create object URLs for all images
-    const urls = images.map(file => URL.createObjectURL(file));
-    setObjectUrls(urls);
+    const revoked = new Set<string>();
     setLoadingStates(new Array(images.length).fill(true));
     setErrorStates(new Array(images.length).fill(false));
+    setPreviewUrls(new Array(images.length).fill(""));
 
-    // Cleanup function to revoke object URLs
+    let cancelled = false;
+    (async () => {
+      const urls: string[] = [];
+      for (let i = 0; i < images.length; i++) {
+        if (cancelled) break;
+        const file = images[i];
+        try {
+          if (isPPMFile(file)) {
+            const dataUrl = await ppmToDataUrl(file);
+            if (cancelled) break;
+            if (dataUrl) {
+              urls[i] = dataUrl;
+            } else {
+              urls[i] = URL.createObjectURL(file);
+              revoked.add(urls[i]);
+            }
+          } else {
+            urls[i] = URL.createObjectURL(file);
+            revoked.add(urls[i]);
+          }
+          if (!cancelled) {
+            setPreviewUrls(prev => {
+              const next = [...prev];
+              next[i] = urls[i];
+              return next;
+            });
+          }
+        } catch {
+          if (!cancelled) setErrorStates(prev => { const n = [...prev]; n[i] = true; return n; });
+        }
+      }
+    })();
+
     return () => {
-      urls.forEach(url => URL.revokeObjectURL(url));
+      cancelled = true;
+      revoked.forEach(url => URL.revokeObjectURL(url));
     };
   }, [images]);
 
@@ -55,8 +88,7 @@ export function ImagePreviewGrid({ images, onRemove }: ImagePreviewGridProps) {
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
       {images.map((file, index) => {
-        const url = objectUrls[index];
-        if (!url) return null;
+        const url = previewUrls[index];
         return (
           <div
             key={`${file.name}-${index}`}
@@ -74,7 +106,7 @@ export function ImagePreviewGrid({ images, onRemove }: ImagePreviewGridProps) {
                   Failed to load image
                 </p>
               </div>
-            ) : (
+            ) : url ? (
               <img
                 src={url}
                 alt={`Preview ${index + 1}`}
@@ -83,6 +115,10 @@ export function ImagePreviewGrid({ images, onRemove }: ImagePreviewGridProps) {
                 onLoad={() => handleImageLoad(index)}
                 onError={() => handleImageError(index)}
               />
+            ) : (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="h-8 w-8 animate-spin rounded-full border-4 border-solid border-primary border-r-transparent" />
+              </div>
             )}
 
             {onRemove && (

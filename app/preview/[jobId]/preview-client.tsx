@@ -62,9 +62,17 @@ export default function PreviewClient({ jobId }: { jobId: string }) {
     let interval: NodeJS.Timeout | null = null;
 
     const connectWebSocket = () => {
-      const wsUrl = `${process.env.NEXT_PUBLIC_SWIFT_WS_URL}/ws?jobId=${jobId}`;
+      const baseUrl = process.env.NEXT_PUBLIC_SWIFT_WS_URL;
+      if (!baseUrl || baseUrl === "undefined") {
+        console.warn(
+          "NEXT_PUBLIC_SWIFT_WS_URL is not set; using polling only. Set it to your Swift API WebSocket URL (e.g. ws://localhost:8080 or wss://your-swift-host)."
+        );
+        startPolling();
+        return;
+      }
+      const wsUrl = `${baseUrl.replace(/\/$/, "")}/ws?jobId=${jobId}`;
       console.log("Connecting to WebSocket:", wsUrl);
-      
+
       ws = new WebSocket(wsUrl);
 
       ws.onopen = () => {
@@ -72,33 +80,30 @@ export default function PreviewClient({ jobId }: { jobId: string }) {
       };
 
       ws.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        console.log("WebSocket message:", data);
-        setStatus(data);
-        
-        // Update model name if available
-        if (data.title) {
-          setModelName(data.title);
-        }
-
-        if (data.status === "completed") {
-          toast.success("Model processing completed!");
-          router.push("/dashboard/models");
-        } else if (data.status === "failed") {
-          setError(data.message || "Processing failed");
-          toast.error(data.message || "Processing failed");
+        try {
+          const data = JSON.parse(event.data);
+          setStatus(data);
+          if (data.title) setModelName(data.title);
+          if (data.status === "completed") {
+            toast.success("Model processing completed!");
+            router.push("/dashboard/models");
+          } else if (data.status === "failed") {
+            setError(data.message || "Processing failed");
+            toast.error(data.message || "Processing failed");
+          }
+        } catch {
+          // ignore parse errors
         }
       };
 
-      ws.onerror = (error) => {
-        console.error("WebSocket error:", error);
-        // Fallback to polling on WebSocket error
+      ws.onerror = () => {
+        // Browser often gives an empty error object; avoid noisy log
+        console.warn("WebSocket connection failed, falling back to polling. Ensure NEXT_PUBLIC_SWIFT_WS_URL is reachable from the browser (e.g. ws://localhost:8080 when dev server is on same machine).");
         startPolling();
       };
 
-      ws.onclose = () => {
-        console.log("WebSocket closed");
-        // Fallback to polling on WebSocket close
+      ws.onclose = (event) => {
+        console.log("WebSocket closed:", event.code, event.reason || "(no reason)");
         startPolling();
       };
     };
