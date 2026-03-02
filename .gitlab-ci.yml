@@ -1,0 +1,107 @@
+image: node:18
+
+stages:
+  - test
+  - build
+  - deploy
+
+variables:
+  AWS_DEFAULT_REGION: us-east-1
+
+.node_modules_cache: &node_modules_cache
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}
+    paths:
+      - server/node_modules/
+      - node_modules/
+
+.aws_credentials: &aws_credentials
+  before_script:
+    - apt-get update && apt-get install -y python3-pip
+    - pip3 install awscli
+    - aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
+    - aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
+    - aws configure set region $AWS_DEFAULT_REGION
+
+test_backend:
+  stage: test
+  <<: *node_modules_cache
+  script:
+    - cd server
+    - npm install --force
+    - npm run build
+
+test_frontend:
+  stage: test
+  <<: *node_modules_cache
+  script:
+    - npm install --force
+    - npm run build
+
+deploy_backend_staging:
+  stage: deploy
+  <<: *node_modules_cache
+  <<: *aws_credentials
+  script:
+    - cd server
+    - npm install --force
+    - npx serverless deploy --stage staging
+  environment:
+    name: staging
+  only:
+    - develop
+
+deploy_backend_production:
+  stage: deploy
+  <<: *node_modules_cache
+  <<: *aws_credentials
+  script:
+    - cd server
+    - npm install --force
+    - npx serverless deploy --stage prod
+  environment:
+    name: production
+  only:
+    - main
+
+deploy_frontend_staging:
+  stage: deploy
+  script:
+    - npm install -g vercel
+    - vercel pull --yes --environment=preview --token $VERCEL_TOKEN
+    - vercel build --token $VERCEL_TOKEN
+    - vercel deploy --prebuilt --token $VERCEL_TOKEN
+  environment:
+    name: staging
+  only:
+    - develop
+
+deploy_frontend_production:
+  stage: deploy
+  script:
+    - npm install -g vercel
+    - vercel pull --yes --environment=production --token $VERCEL_TOKEN
+    - vercel build --prod --token $VERCEL_TOKEN
+    - vercel deploy --prebuilt --prod --token $VERCEL_TOKEN
+  environment:
+    name: production
+  only:
+    - main
+
+# Required GitLab Variables:
+# AWS_ACCESS_KEY_ID
+# AWS_SECRET_ACCESS_KEY
+# VERCEL_TOKEN
+# FIREBASE_PROJECT_ID
+# FIREBASE_PRIVATE_KEY_ID
+# FIREBASE_PRIVATE_KEY
+# FIREBASE_CLIENT_EMAIL
+# FIREBASE_CLIENT_ID
+# FIREBASE_AUTH_URI
+# FIREBASE_TOKEN_URI
+# FIREBASE_AUTH_PROVIDER_CERT_URL
+# FIREBASE_CLIENT_CERT_URL
+# RECAPTCHA_SECRET_KEY
+# DATABASE_URL
+# SWIFT_API_URL
+# SWIFT_WS_URL

@@ -1,0 +1,160 @@
+# Mesh Reality Project Rules & Patterns
+
+## Project Structure Patterns
+
+1. **Next.js App Router Structure**
+   - App directory contains route grouping with parentheses (e.g., `(auth)`, `(marketing)`)
+   - API routes use dedicated route handlers in `/app/api/` 
+   - Dashboard routes are protected and nested under `/app/dashboard/`
+   - Tool interfaces are organized under `/app/tools/[tool-name]/`
+
+2. **Component Organization**
+   - UI components in `/components/ui/`
+   - Auth components in `/components/auth/`
+   - Dashboard components in `/components/dashboard/`
+   - Landing components in `/components/landing/`
+   - Tool-specific components in `/components/tools/`
+   - Shared components in `/components/tools/shared/`
+   - Visual effects components in `/components/magicui/`
+
+3. **Service Pattern**
+   - Services defined in `/lib/services/`
+   - Each service is a self-contained module
+   - Services handle external communication and data processing
+
+## Coding Standards
+
+1. **TypeScript Patterns**
+   - Use of TypeScript for all components and utilities
+   - Type definitions in `/types/` directory
+   - Extension of NextAuth types for custom authentication
+
+2. **React Patterns**
+   - Functional components with hooks
+   - Context API for state management
+   - Client components marked as 'use client' when needed
+   - Server components used by default where possible
+
+3. **Styling Patterns**
+   - Tailwind CSS for all styling
+   - Class variance authority for component variants
+   - clsx/tailwind-merge for conditional class names
+   - Design system components from UI directory
+
+4. **API Patterns**
+   - Next.js API routes with TypeScript
+   - Response handling with proper status codes
+   - Error handling with structured error responses
+   - Service layer abstraction for business logic
+
+## Workflow Patterns
+
+1. **Authentication Flow**
+   - Backend-owned auth (session cookie, Supabase server-side)
+   - Frontend calls backend for session / login / logout
+   - Protected routes through middleware
+   - Client-side auth context for UI state
+
+2. **Job Processing Flow**
+   - Create job via API call
+   - Return job ID immediately
+   - Poll for job status
+   - Display progress updates in UI
+   - Fetch results when job completes
+
+3. **Tool Usage Flow**
+   - Select tool type
+   - Provide input (images/text)
+   - Submit for processing
+   - View progress status
+   - Interact with result
+
+4. **Error Handling Flow**
+   - Client-side validation
+   - Server-side validation
+   - Structured error responses
+   - User-friendly error messages
+   - Recovery options where possible
+
+## Component Implementation Patterns
+
+1. **UI Components**
+   - Radix UI primitives as base
+   - Extended with Tailwind for styling
+   - Slot pattern for flexible composition
+   - Typed props with sensible defaults
+
+2. **Form Handling**
+   - React Hook Form for form state
+   - Zod for schema validation
+   - Form context for complex forms
+   - Inline validation feedback
+
+3. **3D Viewer Components**
+   - Three.js for rendering
+   - Canvas abstraction
+   - Controls wrapper components
+   - Progressive loading strategy
+
+## File Naming Conventions
+
+1. **React Components**
+   - Kebab-case for file names
+   - PascalCase for component names
+   - Component files use `.tsx` extension
+
+2. **Utility Functions**
+   - Camel-case for file and function names
+   - Utility files use `.ts` extension
+   - Grouped by domain in `/lib/` directory
+
+3. **API Routes**
+   - Route structure mirrors API endpoint paths
+   - `route.ts` files for route handlers
+   - Dynamic segments with `[param]` syntax
+
+## Common Implementation Patterns
+
+1. **Tool Page Structure**
+   - Import shared components (file upload, status, viewer)
+   - Define tool-specific parameters and logic
+   - Implement job creation and status polling
+   - Display appropriate UI based on status
+
+2. **Authentication Implementation**
+   - Check auth state via context
+   - Redirect or show login when unauthenticated
+   - Pass auth token to API requests
+   - Handle auth errors gracefully
+
+3. **Job Processing Implementation**
+   - Create job record with required parameters
+   - Store job ID for reference
+   - Poll status endpoint at appropriate intervals
+   - Display status updates in UI
+   - Handle completion and error states
+
+4. **3D Viewer Implementation**
+   - Load model asynchronously
+   - Show loading state or preview while loading
+   - Implement camera controls
+   - Provide export/download options
+
+## Key Project Evolution Notes
+
+1. **Architecture Changes**
+   - Moved from synchronous to asynchronous job processing
+   - Implemented job queue pattern for better scalability
+   - Added status polling for real-time updates
+
+2. **UI Improvements**
+   - Added processing status visualization
+   - Implemented preview GIFs during loading
+   - Enhanced tool interfaces for better UX
+
+3. **Backend Integration**
+   - Shifted to API-based job creation
+   - Implemented polling for status updates
+   - Added S3 integration for model storage
+
+This file serves as a living document of patterns and practices in the Mesh Reality project. It should be updated as new patterns emerge or existing ones evolve.

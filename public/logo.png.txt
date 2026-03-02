@@ -1,0 +1,13 @@
+PLACEHOLDER FOR LOGO IMAGE
+
+This file is a placeholder for the logo image that should be created at:
+/public/logo.png
+
+Specifications:
+- Dimensions: At least 112x112 pixels (recommended minimum for schema.org logo)
+- Format: PNG with transparency
+- Content: The Mesh Reality logo
+
+This image will be used in the Organization schema for structured data, which helps search engines understand your brand identity.
+
+Once you've created the image, replace this text file with the actual image file.

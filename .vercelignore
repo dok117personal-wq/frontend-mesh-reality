@@ -1,0 +1,7 @@
+.git
+.github
+.gitlab
+.vscode
+node_modules
+README.md
+server

@@ -1,0 +1,14 @@
+PLACEHOLDER FOR TWITTER CARD IMAGE
+
+This file is a placeholder for the Twitter Card image that should be created at:
+/public/twitter-image.jpg
+
+Specifications:
+- Dimensions: 1200x600 pixels
+- Format: JPG or PNG
+- Content: Should showcase the Mesh Reality app interface or a compelling visual representation of your 3D generation capabilities
+- Include the Mesh Reality logo and possibly a tagline like "Revolutionary 3D Generation"
+
+This image will be displayed when your website is shared on Twitter and other platforms that support Twitter Card meta tags.
+
+Once you've created the image, replace this text file with the actual image file.
