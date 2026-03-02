@@ -77,6 +77,8 @@ export interface CreateModelGenerationJobParams {
   textPrompt?: string;
   imageData?: string;
   imageDataArray?: string[];
+  /** R2 image URLs (from POST /api/models/upload-images). When set, Swift downloads from these instead of receiving multipart. */
+  imageUrls?: string[];
   options?: {
     texture?: boolean;
     priority?: number;
