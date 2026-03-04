@@ -15,7 +15,15 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useEffect, useState } from "react";
-import { Model, deleteModel, dismissSharedModel, downloadModel, getUserModels } from "@/lib/services/model-service";
+import {
+  Model,
+  deleteModel,
+  dismissSharedModel,
+  downloadModel,
+  getSupportedFormats,
+  getUserModels,
+  requestExport,
+} from "@/lib/services/model-service";
 import { ShareDialog } from "@/components/dashboard/share-dialog";
 import { toast } from "sonner";
 
@@ -28,9 +36,15 @@ export default function ModelsPage() {
   const [shareOpen, setShareOpen] = useState(false);
   const [shareModelId, setShareModelId] = useState<string | null>(null);
   const [shareModelTitle, setShareModelTitle] = useState<string>("");
+  const [formats, setFormats] = useState<string[]>([]);
+  const [generatingFormat, setGeneratingFormat] = useState<{ modelId: string; format: string } | null>(null);
 
   useEffect(() => {
     loadModels();
+  }, []);
+
+  useEffect(() => {
+    getSupportedFormats().then(setFormats);
   }, []);
 
   const loadModels = async () => {
@@ -64,10 +78,25 @@ export default function ModelsPage() {
     }
   };
 
-  const availableFormats = (model: Model) => {
-    const urls = model.outputUrls ?? {};
-    const keys = Object.keys(urls).filter((k) => typeof urls[k] === "string");
-    return keys.length ? keys : ["usdz"];
+  const hasFormat = (model: Model, format: string) => {
+    const url = (model.outputUrls ?? {})[format];
+    return typeof url === "string";
+  };
+
+  const displayFormats = formats.length ? formats : ["usdz", "obj", "stl", "glb"];
+
+  const handleGenerateFormat = async (model: Model, format: string) => {
+    setGeneratingFormat({ modelId: model.id, format });
+    try {
+      await requestExport(model.id, format);
+      await loadModels();
+      toast.success(`${format.toUpperCase()} ready. You can download it now.`);
+    } catch (err) {
+      console.error("Export failed:", err);
+      toast.error(err instanceof Error ? err.message : "Failed to generate format");
+    } finally {
+      setGeneratingFormat(null);
+    }
   };
 
   const handleShare = (model: Model) => {
@@ -215,26 +244,36 @@ export default function ModelsPage() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        {availableFormats(model).length <= 1 ? (
-                          <DropdownMenuItem onClick={() => handleDownload(model, availableFormats(model)[0])}>
+                        <DropdownMenuSub>
+                          <DropdownMenuSubTrigger>
                             <Download className="mr-2 h-4 w-4" />
-                            Download
-                          </DropdownMenuItem>
-                        ) : (
-                          <DropdownMenuSub>
-                            <DropdownMenuSubTrigger>
-                              <Download className="mr-2 h-4 w-4" />
-                              Download
-                            </DropdownMenuSubTrigger>
-                            <DropdownMenuSubContent>
-                              {availableFormats(model).map((fmt) => (
-                                <DropdownMenuItem key={fmt} onClick={() => handleDownload(model, fmt)}>
-                                  {fmt.toUpperCase()}
+                            Export / Download
+                          </DropdownMenuSubTrigger>
+                          <DropdownMenuSubContent>
+                            {displayFormats.map((fmt) => {
+                              const available = hasFormat(model, fmt);
+                              const generating = generatingFormat?.modelId === model.id && generatingFormat?.format === fmt;
+                              return (
+                                <DropdownMenuItem
+                                  key={fmt}
+                                  onClick={() =>
+                                    available
+                                      ? handleDownload(model, fmt)
+                                      : handleGenerateFormat(model, fmt)
+                                  }
+                                  disabled={generating}
+                                >
+                                  {generating ? (
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <Download className="mr-2 h-4 w-4" />
+                                  )}
+                                  {available ? `Download ${fmt.toUpperCase()}` : `Generate ${fmt.toUpperCase()}`}
                                 </DropdownMenuItem>
-                              ))}
-                            </DropdownMenuSubContent>
-                          </DropdownMenuSub>
-                        )}
+                              );
+                            })}
+                          </DropdownMenuSubContent>
+                        </DropdownMenuSub>
                         {!model.sharedWithMe && (
                           <DropdownMenuItem onClick={() => handleShare(model)}>
                             <Share2 className="mr-2 h-4 w-4" />

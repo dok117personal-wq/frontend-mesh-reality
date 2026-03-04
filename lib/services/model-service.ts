@@ -33,6 +33,18 @@ export interface Model {
   }>;
 }
 
+/** Supported 3D export formats for download/generate board. */
+export const SUPPORTED_EXPORT_FORMATS = ["usdz", "obj", "stl", "glb"] as const;
+
+export async function getSupportedFormats(): Promise<string[]> {
+  try {
+    const data = await backendFetch<{ formats: string[] }>("/api/models/formats");
+    return data?.formats ?? [...SUPPORTED_EXPORT_FORMATS];
+  } catch {
+    return [...SUPPORTED_EXPORT_FORMATS];
+  }
+}
+
 export async function getUserModels(): Promise<Model[]> {
   const data = await backendFetch<{ models: Model[]; total: number }>("/api/models");
   return data?.models ?? [];
@@ -118,6 +130,18 @@ export async function dismissSharedModel(modelId: string): Promise<void> {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ modelId }),
+  });
+}
+
+/** Request export to a format. Returns { url, status: 'available' | 'generated' }. May trigger conversion. */
+export async function requestExport(
+  modelId: string,
+  format: string
+): Promise<{ url: string; status: "available" | "generated" }> {
+  return backendFetch(`/api/models/${modelId}/export`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ format: format.toLowerCase() }),
   });
 }
 

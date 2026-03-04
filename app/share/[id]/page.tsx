@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { getPublicModel, downloadPublicModel, Model } from "@/lib/services/model-service";
+import { getPublicModel, downloadPublicModel, Model, SUPPORTED_EXPORT_FORMATS } from "@/lib/services/model-service";
 import ModelViewer from "@/components/tools/shared/model-viewer";
 import { Download, Loader2, Box, ArrowLeft } from "lucide-react";
 
@@ -55,9 +55,10 @@ export default function ShareModelPage() {
     }
   };
 
-  const formats = model?.outputUrls
+  const availableFormats = model?.outputUrls
     ? Object.keys(model.outputUrls).filter((k) => typeof model.outputUrls![k] === "string")
     : [];
+  const hasFormat = (fmt: string) => availableFormats.includes(fmt);
   const glbUrl = model?.outputUrls?.glb as string | undefined;
 
   if (loading) {
@@ -123,20 +124,22 @@ export default function ShareModelPage() {
           </div>
         </Card>
 
-        {formats.length > 0 && (
-          <Card className="p-6">
-            <h2 className="font-semibold mb-3">Download</h2>
-            <p className="text-sm text-muted-foreground mb-4">
-              Choose a format (USDZ, OBJ, STL, GLB, etc.) to download.
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {formats.map((fmt) => (
+        <Card className="p-6">
+          <h2 className="font-semibold mb-3">Download</h2>
+          <p className="text-sm text-muted-foreground mb-4">
+            All supported formats. Download any format that has been generated for this model.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {SUPPORTED_EXPORT_FORMATS.map((fmt) => {
+              const available = hasFormat(fmt);
+              return (
                 <Button
                   key={fmt}
                   variant="outline"
                   size="sm"
-                  onClick={() => handleDownload(fmt)}
-                  disabled={downloading !== null}
+                  onClick={() => available && handleDownload(fmt)}
+                  disabled={downloading !== null || !available}
+                  title={available ? `Download ${fmt.toUpperCase()}` : "Not generated for this model"}
                 >
                   {downloading === fmt ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -144,11 +147,14 @@ export default function ShareModelPage() {
                     <Download className="mr-2 h-4 w-4" />
                   )}
                   {fmt.toUpperCase()}
+                  {!available && (
+                    <span className="ml-1 text-xs text-muted-foreground">(n/a)</span>
+                  )}
                 </Button>
-              ))}
-            </div>
-          </Card>
-        )}
+              );
+            })}
+          </div>
+        </Card>
       </main>
     </div>
   );
