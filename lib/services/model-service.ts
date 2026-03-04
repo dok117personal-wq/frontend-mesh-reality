@@ -1,4 +1,4 @@
-import { backendFetch, API_URL } from "@/lib/api-client";
+import { backendFetch, API_URL, backendFetchHeaders } from "@/lib/api-client";
 
 export interface Model {
   id: string;
@@ -40,6 +40,7 @@ export async function deleteModel(modelId: string): Promise<void> {
   const response = await fetch(`${API_URL}/api/models/${modelId}`, {
     method: "DELETE",
     credentials: "include",
+    headers: { ...backendFetchHeaders() },
   });
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
@@ -54,7 +55,10 @@ export async function downloadModel(
 ): Promise<Blob> {
   const url = new URL(`${API_URL}/api/models/${modelId}/download`);
   if (format) url.searchParams.set("format", format);
-  const response = await fetch(url.toString(), { credentials: "include" });
+  const response = await fetch(url.toString(), {
+    credentials: "include",
+    headers: { ...backendFetchHeaders() },
+  });
   if (!response.ok) {
     const errorText = await response.text();
     throw new Error(`Failed to download model: ${response.status} ${errorText}`);
@@ -73,20 +77,35 @@ export async function shareModel(modelId: string): Promise<{
   return data!;
 }
 
-/** Public: get shared model by id (no auth). */
+/** Public: get shared model by id. Works with or without auth (no credentials sent). */
 export async function getPublicModel(modelId: string): Promise<Model> {
-  const data = await backendFetch<Model>(`/api/models/public/${modelId}`);
-  return data!;
+  const url = `${API_URL}/api/models/public/${modelId}`;
+  const response = await fetch(url, {
+    credentials: "omit",
+    headers: { ...backendFetchHeaders() },
+  });
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    const msg = (body as { error?: { message?: string } }).error?.message || response.statusText || "Failed to load model";
+    throw new Error(msg);
+  }
+  const body = await response.json();
+  const data = (body as { data?: Model }).data;
+  if (!data) throw new Error("Invalid response");
+  return data;
 }
 
-/** Public: download shared model by format (no auth). */
+/** Public: download shared model by format. Works with or without auth (no credentials sent). */
 export async function downloadPublicModel(
   modelId: string,
   format?: string
 ): Promise<Blob> {
   const url = new URL(`${API_URL}/api/models/public/${modelId}/download`);
   if (format) url.searchParams.set("format", format);
-  const response = await fetch(url.toString());
+  const response = await fetch(url.toString(), {
+    credentials: "omit",
+    headers: { ...backendFetchHeaders() },
+  });
   if (!response.ok) {
     const errorText = await response.text();
     throw new Error(`Failed to download: ${response.status} ${errorText}`);

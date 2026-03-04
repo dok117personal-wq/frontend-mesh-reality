@@ -3,8 +3,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { toast } from "sonner";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3002";
+import { API_URL, backendFetchHeaders } from "@/lib/api-client";
 
 interface BackendUser {
   id: string;
@@ -40,7 +39,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const refreshSession = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/auth/session`, { credentials: "include" });
+      const res = await fetch(`${API_URL}/api/auth/session`, {
+        credentials: "include",
+        headers: { ...backendFetchHeaders() },
+      });
       if (!res.ok) {
         setUser(null);
         return;
@@ -69,7 +71,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     try {
-      await fetch(`${API_URL}/api/auth/logout`, { method: "POST", credentials: "include" });
+      await fetch(`${API_URL}/api/auth/logout`, {
+        method: "POST",
+        credentials: "include",
+        headers: { ...backendFetchHeaders() },
+      });
       await fetch("/api/auth/clear-session", { method: "POST", credentials: "include" });
       setUser(null);
       router.push("/signin");

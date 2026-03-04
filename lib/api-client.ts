@@ -11,6 +11,13 @@ export type BackendResponse<T> =
   | { data: T; error?: never }
   | { data?: never; error: BackendError };
 
+/** When backend is behind ngrok, send this so ngrok forwards to the app instead of the interstitial (which returns * CORS). */
+export function backendFetchHeaders(): Record<string, string> {
+  return typeof API_URL === "string" && API_URL.includes("ngrok")
+    ? { "ngrok-skip-browser-warning": "1" }
+    : {};
+}
+
 /**
  * Fetches from the backend and returns the unwrapped data, or throws on error.
  */
@@ -21,6 +28,7 @@ export async function backendFetch<T>(
   const { token, ...fetchOptions } = options;
   const url = path.startsWith("http") ? path : `${API_URL}${path}`;
   const headers: HeadersInit = {
+    ...backendFetchHeaders(),
     ...(fetchOptions.headers as Record<string, string>),
     ...(token && { Authorization: `Bearer ${token}` }),
   };

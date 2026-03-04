@@ -4,8 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/auth-context";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3002";
+import { API_URL, backendFetchHeaders } from "@/lib/api-client";
 
 interface UsePhoneAuthReturn {
   loading: boolean;
@@ -30,7 +29,7 @@ export function usePhoneAuth(): UsePhoneAuthReturn {
 
       const res = await fetch(`${API_URL}/api/auth/phone/request`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...backendFetchHeaders() },
         body: JSON.stringify({ phone: formatted }),
         credentials: "include",
       });
@@ -56,7 +55,7 @@ export function usePhoneAuth(): UsePhoneAuthReturn {
 
       const res = await fetch(`${API_URL}/api/auth/phone/verify`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...backendFetchHeaders() },
         body: JSON.stringify({ phone, token: code }),
         credentials: "include",
       });

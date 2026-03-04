@@ -4,8 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3002";
+import { API_URL, backendFetchHeaders } from "@/lib/api-client";
 
 export default function AuthCallbackPage() {
   const router = useRouter();
@@ -32,7 +31,7 @@ export default function AuthCallbackPage() {
       try {
         const res = await fetch(`${API_URL}/api/auth/login`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", ...backendFetchHeaders() },
           body: JSON.stringify({ access_token: accessToken }),
           credentials: "include",
         });
