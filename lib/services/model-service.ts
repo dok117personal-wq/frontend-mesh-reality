@@ -103,6 +103,15 @@ export async function getModelShares(modelId: string): Promise<
   return data?.shares ?? [];
 }
 
+/** Revoke restricted share for one email. Owner only. */
+export async function revokeModelShare(modelId: string, email: string): Promise<void> {
+  await backendFetch(`/api/models/${modelId}/shares/revoke`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+}
+
 /** Download model via restricted share token (auth required). */
 export async function downloadByShareToken(
   token: string,

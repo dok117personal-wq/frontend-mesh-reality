@@ -5,8 +5,8 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Share2, Copy, Loader2, X, Link2, UserPlus, User } from "lucide-react";
-import { shareModel, getModelShares, type ShareResult } from "@/lib/services/model-service";
+import { Share2, Copy, Loader2, X, Link2, UserPlus, User, UserMinus } from "lucide-react";
+import { shareModel, getModelShares, revokeModelShare, type ShareResult } from "@/lib/services/model-service";
 import { useAuth } from "@/contexts/auth-context";
 import { toast } from "sonner";
 
@@ -33,6 +33,7 @@ export function ShareDialog({
   const [result, setResult] = useState<ShareResult | null>(null);
   const [peopleWithAccess, setPeopleWithAccess] = useState<PersonWithAccess[]>([]);
   const [loadingShares, setLoadingShares] = useState(false);
+  const [revokingEmail, setRevokingEmail] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open || !modelId) return;
@@ -76,6 +77,19 @@ export function ShareDialog({
 
   const handleRemoveEmail = (email: string) => {
     setEmails(emails.filter((x) => x !== email));
+  };
+
+  const handleRevokeAccess = async (email: string) => {
+    setRevokingEmail(email);
+    try {
+      await revokeModelShare(modelId, email);
+      setPeopleWithAccess((prev) => prev.filter((p) => p.email !== email));
+      toast.success(`Access removed for ${email}`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to remove access");
+    } finally {
+      setRevokingEmail(null);
+    }
   };
 
   const handleCreateLinks = async () => {
@@ -155,17 +169,35 @@ export function ShareDialog({
               <ul className="border rounded-lg divide-y bg-muted/20 max-h-32 overflow-y-auto">
                 {peopleWithAccess.map((p) => (
                   <li key={p.isOwner ? "owner" : p.email} className="flex items-center justify-between gap-2 px-3 py-2 text-sm">
-                    <span className="flex items-center gap-2 truncate">
+                    <span className="flex items-center gap-2 truncate min-w-0">
                       {p.isOwner ? (
                         <User className="h-4 w-4 text-muted-foreground shrink-0" />
                       ) : null}
                       <span className={p.isOwner ? "font-medium" : ""}>{p.email}</span>
                     </span>
-                    {!p.isOwner && p.shareUrl ? (
-                      <Button size="sm" variant="ghost" onClick={() => copyUrl(p.shareUrl)} title="Copy link">
-                        <Copy className="h-3 w-3" />
-                      </Button>
-                    ) : null}
+                    <div className="flex items-center gap-1 shrink-0">
+                      {!p.isOwner && p.shareUrl ? (
+                        <Button size="sm" variant="ghost" onClick={() => copyUrl(p.shareUrl)} title="Copy link">
+                          <Copy className="h-3 w-3" />
+                        </Button>
+                      ) : null}
+                      {!p.isOwner ? (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleRevokeAccess(p.email)}
+                          disabled={revokingEmail === p.email}
+                          title="Remove access"
+                          className="text-muted-foreground hover:text-destructive"
+                        >
+                          {revokingEmail === p.email ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <UserMinus className="h-3 w-3" />
+                          )}
+                        </Button>
+                      ) : null}
+                    </div>
                   </li>
                 ))}
               </ul>
