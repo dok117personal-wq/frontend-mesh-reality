@@ -33,15 +33,57 @@ export interface Model {
   }>;
 }
 
-/** Supported 3D export formats for download/generate board. */
+/** Safe uppercase for display; never throws. Use instead of .toUpperCase() on values that might not be strings. */
+export function safeUpper(x: unknown): string {
+  if (x == null) return "";
+  if (typeof x === "string") return x.toUpperCase();
+  return String(x).toUpperCase();
+}
+
+/** Supported 3D export formats (fallback when API fails). */
 export const SUPPORTED_EXPORT_FORMATS = ["usdz", "obj", "stl", "glb"] as const;
 
-export async function getSupportedFormats(): Promise<string[]> {
+export type ExportFormatItem = {
+  code: string;
+  displayName: string | null;
+  canCreate: boolean;
+  sortOrder: number;
+};
+
+function normalizeFormatItem(raw: unknown): ExportFormatItem {
+  if (typeof raw === "string") {
+    return {
+      code: raw,
+      displayName: safeUpper(raw),
+      canCreate: ["obj", "stl"].includes(raw.toLowerCase()),
+      sortOrder: 0,
+    };
+  }
+  if (raw && typeof raw === "object" && "code" in raw) {
+    const o = raw as Record<string, unknown>;
+    const code = typeof o.code === "string" ? o.code : String(o.code ?? "");
+    return {
+      code,
+      displayName: typeof o.displayName === "string" ? o.displayName : (o.display_name != null ? String(o.display_name) : null) ?? safeUpper(code),
+      canCreate: Boolean(o.canCreate ?? o.can_convert_from_usdz),
+      sortOrder: typeof o.sortOrder === "number" ? o.sortOrder : Number(o.sort_order ?? 0),
+    };
+  }
+  return { code: "", displayName: null, canCreate: false, sortOrder: 0 };
+}
+
+export async function getSupportedFormats(): Promise<ExportFormatItem[]> {
   try {
-    const data = await backendFetch<{ formats: string[] }>("/api/models/formats");
-    return data?.formats ?? [...SUPPORTED_EXPORT_FORMATS];
+    const data = await backendFetch<{ formats: unknown[] }>("/api/models/formats");
+    if (!Array.isArray(data?.formats)) return [];
+    return data.formats.map(normalizeFormatItem).filter((f) => f.code.length > 0);
   } catch {
-    return [...SUPPORTED_EXPORT_FORMATS];
+    return SUPPORTED_EXPORT_FORMATS.map((code, i) => ({
+      code,
+      displayName: safeUpper(code),
+      canCreate: ["obj", "stl"].includes(code),
+      sortOrder: i,
+    }));
   }
 }
 

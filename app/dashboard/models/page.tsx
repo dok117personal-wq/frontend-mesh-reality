@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useEffect, useState } from "react";
 import {
+  type ExportFormatItem,
   Model,
   deleteModel,
   dismissSharedModel,
@@ -23,6 +24,7 @@ import {
   getSupportedFormats,
   getUserModels,
   requestExport,
+  safeUpper,
 } from "@/lib/services/model-service";
 import { ShareDialog } from "@/components/dashboard/share-dialog";
 import { toast } from "sonner";
@@ -36,7 +38,7 @@ export default function ModelsPage() {
   const [shareOpen, setShareOpen] = useState(false);
   const [shareModelId, setShareModelId] = useState<string | null>(null);
   const [shareModelTitle, setShareModelTitle] = useState<string>("");
-  const [formats, setFormats] = useState<string[]>([]);
+  const [formats, setFormats] = useState<ExportFormatItem[]>([]);
   const [generatingFormat, setGeneratingFormat] = useState<{ modelId: string; format: string } | null>(null);
 
   useEffect(() => {
@@ -51,27 +53,34 @@ export default function ModelsPage() {
     try {
       setLoading(true);
       setError(null);
-      const data = await getUserModels();
-      setModels(data);
+      const timeoutMs = 15000;
+      const data = await Promise.race([
+        getUserModels(),
+        new Promise<Model[]>((_, reject) =>
+          setTimeout(() => reject(new Error("Request timed out")), timeoutMs)
+        ),
+      ]);
+      setModels(data ?? []);
     } catch (err) {
       console.error("Error loading models:", err);
-      setError("Failed to load models. Please try again later.");
+      setError(err instanceof Error ? err.message : "Failed to load models. Please try again later.");
     } finally {
       setLoading(false);
     }
   };
 
   const handleDownload = async (model: Model, format?: string) => {
+    const fmt = String(format ?? "").trim().toLowerCase() || "usdz";
     try {
-      const blob = await downloadModel(model.id, format);
-      const ext = format || "usdz";
+      const blob = await downloadModel(model.id, fmt);
+      const ext = fmt;
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
       a.download = `${model.title || "model"}.${ext}`;
       a.click();
       URL.revokeObjectURL(url);
-      toast.success(`Download started (${ext.toUpperCase()})`);
+      toast.success(`Download started (${safeUpper(ext)})`);
     } catch (err) {
       console.error("Error downloading model:", err);
       toast.error("Failed to download model");
@@ -83,22 +92,57 @@ export default function ModelsPage() {
     return typeof url === "string";
   };
 
-  const displayFormats = formats.length ? formats : ["usdz", "obj", "stl", "glb"];
+  const displayFormats: ExportFormatItem[] =
+    formats.length > 0
+      ? formats
+      : [
+          { code: "usdz", displayName: "USDZ", canCreate: false, sortOrder: 0 },
+          { code: "obj", displayName: "OBJ", canCreate: true, sortOrder: 1 },
+          { code: "stl", displayName: "STL", canCreate: true, sortOrder: 2 },
+          { code: "glb", displayName: "GLB", canCreate: false, sortOrder: 3 },
+        ];
 
-  const formatStatus = (model: Model, format: string) => {
-    if (hasFormat(model, format)) return "ready" as const;
-    if (generatingFormat?.modelId === model.id && generatingFormat?.format === format) return "creating" as const;
+  const DEFAULT_FORMAT_LIST: { code: string; label: string; canCreate: boolean }[] = [
+    { code: "usdz", label: "USDZ", canCreate: false },
+    { code: "obj", label: "OBJ", canCreate: true },
+    { code: "stl", label: "STL", canCreate: true },
+    { code: "glb", label: "GLB", canCreate: false },
+  ];
+
+  let safeFormatList = DEFAULT_FORMAT_LIST;
+  try {
+    const formatList: { code: string; label: string; canCreate: boolean }[] = displayFormats.map((fmt) => {
+      const rawCode = typeof fmt === "string" ? fmt : (fmt && typeof fmt === "object" && "code" in fmt ? (fmt as ExportFormatItem).code : null);
+      const code = rawCode == null ? "" : String(rawCode).trim().toLowerCase();
+      let label = "";
+      if (typeof fmt === "string") label = safeUpper(fmt);
+      else if (fmt && typeof fmt === "object") {
+        const o = fmt as ExportFormatItem;
+        label = o.displayName != null && o.displayName !== "" ? safeUpper(o.displayName) : code ? safeUpper(code) : "";
+      }
+      if (!label && code) label = safeUpper(code);
+      const canCreate = typeof fmt === "object" && fmt != null && "canCreate" in fmt ? Boolean((fmt as ExportFormatItem).canCreate) : ["obj", "stl"].includes(code);
+      return { code, label: label || safeUpper(code), canCreate };
+    }).filter((f) => f.code.length > 0);
+    safeFormatList = formatList.length > 0 ? formatList : DEFAULT_FORMAT_LIST;
+  } catch (_) {
+    safeFormatList = DEFAULT_FORMAT_LIST;
+  }
+
+  const formatStatus = (model: Model, formatCode: string) => {
+    if (hasFormat(model, formatCode)) return "ready" as const;
+    if (generatingFormat?.modelId === model.id && generatingFormat?.format === formatCode) return "creating" as const;
     return "not_ready" as const;
   };
 
-  const canCreateFormat = (format: string) => ["obj", "stl"].includes(format.toLowerCase());
-
-  const handleGenerateFormat = async (model: Model, format: string) => {
-    setGeneratingFormat({ modelId: model.id, format });
+  const handleGenerateFormat = async (model: Model, formatCode: string) => {
+    const code = String(formatCode ?? "").trim().toLowerCase();
+    if (!code) return;
+    setGeneratingFormat({ modelId: model.id, format: code });
     try {
-      await requestExport(model.id, format);
+      await requestExport(model.id, code);
       await loadModels();
-      toast.success(`${format.toUpperCase()} ready. You can download it now.`);
+      toast.success(`${safeUpper(code)} ready. You can download it now.`);
     } catch (err) {
       console.error("Export failed:", err);
       toast.error(err instanceof Error ? err.message : "Failed to generate format");
@@ -242,7 +286,7 @@ export default function ModelsPage() {
                         )}
                       </div>
                       <p className="text-sm text-muted-foreground">
-                        {model.fileType.toUpperCase()} • {model.status}
+                        {safeUpper(model.fileType)} • {model.status}
                       </p>
                     </div>
                     <DropdownMenu>
@@ -258,16 +302,16 @@ export default function ModelsPage() {
                             Export / Download
                           </DropdownMenuSubTrigger>
                           <DropdownMenuSubContent>
-                            {displayFormats.map((fmt) => {
-                              const available = hasFormat(model, fmt);
-                              const generating = generatingFormat?.modelId === model.id && generatingFormat?.format === fmt;
+                            {safeFormatList.map((f) => {
+                              const available = hasFormat(model, f.code);
+                              const generating = generatingFormat?.modelId === model.id && generatingFormat?.format === f.code;
                               return (
                                 <DropdownMenuItem
-                                  key={fmt}
+                                  key={f.code}
                                   onClick={() =>
                                     available
-                                      ? handleDownload(model, fmt)
-                                      : handleGenerateFormat(model, fmt)
+                                      ? handleDownload(model, f.code)
+                                      : handleGenerateFormat(model, f.code)
                                   }
                                   disabled={generating}
                                 >
@@ -276,7 +320,7 @@ export default function ModelsPage() {
                                   ) : (
                                     <Download className="mr-2 h-4 w-4" />
                                   )}
-                                  {available ? `Download ${fmt.toUpperCase()}` : `Generate ${fmt.toUpperCase()}`}
+                                  {available ? `Download ${f.label}` : `Generate ${f.label}`}
                                 </DropdownMenuItem>
                               );
                             })}
@@ -315,18 +359,17 @@ export default function ModelsPage() {
                           Export formats
                         </h4>
                         <div className="space-y-2">
-                          {displayFormats.map((fmt) => {
-                            const status = formatStatus(model, fmt);
+                          {safeFormatList.map((f) => {
+                            const status = formatStatus(model, f.code);
                             const ready = status === "ready";
                             const creating = status === "creating";
                             const notReady = status === "not_ready";
-                            const canCreate = canCreateFormat(fmt);
                             return (
                               <div
-                                key={fmt}
+                                key={f.code}
                                 className="flex items-center justify-between gap-2 py-1.5 px-2 rounded-md bg-muted/50"
                               >
-                                <span className="text-sm font-medium">{fmt.toUpperCase()}</span>
+                                <span className="text-sm font-medium">{f.label}</span>
                                 <div className="flex items-center gap-2 shrink-0">
                                   {ready && (
                                     <>
@@ -338,7 +381,7 @@ export default function ModelsPage() {
                                         variant="ghost"
                                         size="sm"
                                         className="h-7 text-xs"
-                                        onClick={() => handleDownload(model, fmt)}
+                                        onClick={() => handleDownload(model, f.code)}
                                       >
                                         <Download className="h-3 w-3 mr-1" />
                                         Download
@@ -357,12 +400,12 @@ export default function ModelsPage() {
                                         <CircleDashed className="h-3.5 w-3.5" />
                                         Not ready
                                       </span>
-                                      {canCreate ? (
+                                      {f.canCreate ? (
                                         <Button
                                           variant="ghost"
                                           size="sm"
                                           className="h-7 text-xs"
-                                          onClick={() => handleGenerateFormat(model, fmt)}
+                                          onClick={() => handleGenerateFormat(model, f.code)}
                                         >
                                           <Sparkles className="h-3 w-3 mr-1" />
                                           Create

@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { getPublicModel, downloadPublicModel, Model, SUPPORTED_EXPORT_FORMATS } from "@/lib/services/model-service";
+import { getPublicModel, downloadPublicModel, Model, SUPPORTED_EXPORT_FORMATS, safeUpper } from "@/lib/services/model-service";
 import ModelViewer from "@/components/tools/shared/model-viewer";
 import { Download, Loader2, Box, ArrowLeft } from "lucide-react";
 
@@ -131,22 +131,24 @@ export default function ShareModelPage() {
           </p>
           <div className="flex flex-wrap gap-2">
             {SUPPORTED_EXPORT_FORMATS.map((fmt) => {
-              const available = hasFormat(fmt);
+              const code = typeof fmt === "string" ? fmt : String((fmt as { code?: unknown })?.code ?? "");
+              const available = hasFormat(code);
+              const label = safeUpper(code || fmt);
               return (
                 <Button
-                  key={fmt}
+                  key={code || String(fmt)}
                   variant="outline"
                   size="sm"
-                  onClick={() => available && handleDownload(fmt)}
+                  onClick={() => available && handleDownload(code)}
                   disabled={downloading !== null || !available}
-                  title={available ? `Download ${fmt.toUpperCase()}` : "Not generated for this model"}
+                  title={available ? `Download ${label}` : "Not generated for this model"}
                 >
-                  {downloading === fmt ? (
+                  {downloading === code ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   ) : (
                     <Download className="mr-2 h-4 w-4" />
                   )}
-                  {fmt.toUpperCase()}
+                  {label}
                   {!available && (
                     <span className="ml-1 text-xs text-muted-foreground">(n/a)</span>
                   )}
