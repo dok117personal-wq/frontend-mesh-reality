@@ -93,6 +93,16 @@ export async function getModelByShareToken(token: string): Promise<Model> {
   return data!;
 }
 
+/** List people this model is shared with (restricted shares). Owner only. */
+export async function getModelShares(modelId: string): Promise<
+  Array<{ email: string; shareUrl: string; createdAt: string }>
+> {
+  const data = await backendFetch<{ shares: Array<{ email: string; shareUrl: string; createdAt: string }> }>(
+    `/api/models/${modelId}/shares`
+  );
+  return data?.shares ?? [];
+}
+
 /** Download model via restricted share token (auth required). */
 export async function downloadByShareToken(
   token: string,

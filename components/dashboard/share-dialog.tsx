@@ -1,15 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Share2, Copy, Loader2, X, Link2, UserPlus } from "lucide-react";
-import { shareModel, type ShareResult } from "@/lib/services/model-service";
+import { Share2, Copy, Loader2, X, Link2, UserPlus, User } from "lucide-react";
+import { shareModel, getModelShares, type ShareResult } from "@/lib/services/model-service";
+import { useAuth } from "@/contexts/auth-context";
 import { toast } from "sonner";
 
 type ShareType = "public" | "restricted";
+
+type PersonWithAccess = { email: string; shareUrl: string; createdAt?: string; isOwner?: boolean };
 
 export function ShareDialog({
   modelId,
@@ -22,11 +25,42 @@ export function ShareDialog({
   open: boolean;
   onClose: () => void;
 }) {
+  const { user } = useAuth();
   const [shareType, setShareType] = useState<ShareType>("public");
   const [emails, setEmails] = useState<string[]>([]);
   const [emailInput, setEmailInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<ShareResult | null>(null);
+  const [peopleWithAccess, setPeopleWithAccess] = useState<PersonWithAccess[]>([]);
+  const [loadingShares, setLoadingShares] = useState(false);
+
+  useEffect(() => {
+    if (!open || !modelId) return;
+    setLoadingShares(true);
+    getModelShares(modelId)
+      .then((shares) => {
+        const ownerEmail = user?.email?.trim().toLowerCase();
+        const list: PersonWithAccess[] = [];
+        if (ownerEmail) {
+          list.push({
+            email: "You (owner)",
+            shareUrl: "",
+            isOwner: true,
+          });
+        }
+        shares.forEach((s) => {
+          list.push({
+            email: s.email,
+            shareUrl: s.shareUrl,
+            createdAt: s.createdAt,
+            isOwner: false,
+          });
+        });
+        setPeopleWithAccess(list);
+      })
+      .catch(() => setPeopleWithAccess([]))
+      .finally(() => setLoadingShares(false));
+  }, [open, modelId, user?.email]);
 
   const handleAddEmail = () => {
     const e = emailInput.trim().toLowerCase();
@@ -66,6 +100,14 @@ export function ShareDialog({
         }
       } else if (!res.isPublic && res.shareUrls?.length) {
         toast.success(`Created ${res.shareUrls.length} link(s) for the people you added`);
+        setPeopleWithAccess((prev) => {
+          const owner = prev.find((p) => p.isOwner);
+          const next = owner ? [owner] : [];
+          res.shareUrls!.forEach(({ email, shareUrl }) => {
+            next.push({ email, shareUrl, isOwner: false });
+          });
+          return next;
+        });
       }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to create share links");
@@ -102,6 +144,34 @@ export function ShareDialog({
         </div>
 
         <div className="space-y-4">
+          {loadingShares ? (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Loading people with access…
+            </div>
+          ) : peopleWithAccess.length > 0 ? (
+            <div className="space-y-2">
+              <p className="text-sm font-medium">People with access</p>
+              <ul className="border rounded-lg divide-y bg-muted/20 max-h-32 overflow-y-auto">
+                {peopleWithAccess.map((p) => (
+                  <li key={p.isOwner ? "owner" : p.email} className="flex items-center justify-between gap-2 px-3 py-2 text-sm">
+                    <span className="flex items-center gap-2 truncate">
+                      {p.isOwner ? (
+                        <User className="h-4 w-4 text-muted-foreground shrink-0" />
+                      ) : null}
+                      <span className={p.isOwner ? "font-medium" : ""}>{p.email}</span>
+                    </span>
+                    {!p.isOwner && p.shareUrl ? (
+                      <Button size="sm" variant="ghost" onClick={() => copyUrl(p.shareUrl)} title="Copy link">
+                        <Copy className="h-3 w-3" />
+                      </Button>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+
           <div className="space-y-2">
             <p className="text-sm text-muted-foreground">Who can access?</p>
             <div className="flex gap-4">
