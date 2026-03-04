@@ -69,8 +69,15 @@ export default function ModelsPage() {
   const handleShare = async (modelId: string) => {
     try {
       const { shareUrl } = await shareModel(modelId);
-      await navigator.clipboard.writeText(shareUrl);
-      toast.success("Share link copied to clipboard");
+      try {
+        await navigator.clipboard.writeText(shareUrl);
+        toast.success("Share link copied to clipboard");
+      } catch {
+        toast.success("Share link ready", {
+          description: shareUrl,
+          action: { label: "Copy", onClick: () => navigator.clipboard.writeText(shareUrl) },
+        });
+      }
     } catch (err) {
       console.error("Error sharing model:", err);
       toast.error("Failed to share model");
