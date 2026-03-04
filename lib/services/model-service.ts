@@ -47,10 +47,14 @@ export async function deleteModel(modelId: string): Promise<void> {
   }
 }
 
-export async function downloadModel(modelId: string): Promise<Blob> {
-  const response = await fetch(`${API_URL}/api/models/${modelId}/download`, {
-    credentials: "include",
-  });
+/** Download model (authenticated). Optional format: usdz, obj, stl, glb, etc. Default usdz. */
+export async function downloadModel(
+  modelId: string,
+  format?: string
+): Promise<Blob> {
+  const url = new URL(`${API_URL}/api/models/${modelId}/download`);
+  if (format) url.searchParams.set("format", format);
+  const response = await fetch(url.toString(), { credentials: "include" });
   if (!response.ok) {
     const errorText = await response.text();
     throw new Error(`Failed to download model: ${response.status} ${errorText}`);
@@ -58,16 +62,36 @@ export async function downloadModel(modelId: string): Promise<Blob> {
   return response.blob();
 }
 
-export async function shareModel(modelId: string): Promise<{ shareUrl: string }> {
-  const response = await fetch(`${API_URL}/api/models/${modelId}/share`, {
-    method: "POST",
-    credentials: "include",
-  });
+export async function shareModel(modelId: string): Promise<{
+  shareUrl: string;
+  isPublic: boolean;
+}> {
+  const data = await backendFetch<{ shareUrl: string; isPublic: boolean }>(
+    `/api/models/${modelId}/share`,
+    { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }
+  );
+  return data!;
+}
+
+/** Public: get shared model by id (no auth). */
+export async function getPublicModel(modelId: string): Promise<Model> {
+  const data = await backendFetch<Model>(`/api/models/public/${modelId}`);
+  return data!;
+}
+
+/** Public: download shared model by format (no auth). */
+export async function downloadPublicModel(
+  modelId: string,
+  format?: string
+): Promise<Blob> {
+  const url = new URL(`${API_URL}/api/models/public/${modelId}/download`);
+  if (format) url.searchParams.set("format", format);
+  const response = await fetch(url.toString());
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`Failed to share model: ${response.status} ${errorText}`);
+    throw new Error(`Failed to download: ${response.status} ${errorText}`);
   }
-  return response.json();
+  return response.blob();
 }
 
 export interface CreateModelGenerationJobParams {

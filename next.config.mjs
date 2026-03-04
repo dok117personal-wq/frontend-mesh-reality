@@ -1,5 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Satisfy Next.js 16: Turbopack is default; we have webpack config, so declare turbopack explicitly
+  turbopack: {},
   experimental: {
     serverActions: { bodySizeLimit: '200mb' },
   },

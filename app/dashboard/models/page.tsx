@@ -9,6 +9,9 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useEffect, useState } from "react";
@@ -40,20 +43,27 @@ export default function ModelsPage() {
     }
   };
 
-  const handleDownload = async (model: Model) => {
+  const handleDownload = async (model: Model, format?: string) => {
     try {
-      const blob = await downloadModel(model.id);
+      const blob = await downloadModel(model.id, format);
+      const ext = format || "usdz";
       const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
+      const a = document.createElement("a");
       a.href = url;
-      a.download = `${model.title || 'model'}.usdz`;
+      a.download = `${model.title || "model"}.${ext}`;
       a.click();
       URL.revokeObjectURL(url);
-      toast.success("Model download started");
+      toast.success(`Download started (${ext.toUpperCase()})`);
     } catch (err) {
       console.error("Error downloading model:", err);
       toast.error("Failed to download model");
     }
+  };
+
+  const availableFormats = (model: Model) => {
+    const urls = model.outputUrls ?? {};
+    const keys = Object.keys(urls).filter((k) => typeof urls[k] === "string");
+    return keys.length ? keys : ["usdz"];
   };
 
   const handleShare = async (modelId: string) => {
@@ -188,10 +198,26 @@ export default function ModelsPage() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => handleDownload(model)}>
-                          <Download className="mr-2 h-4 w-4" />
-                          Download
-                        </DropdownMenuItem>
+                        {availableFormats(model).length <= 1 ? (
+                          <DropdownMenuItem onClick={() => handleDownload(model, availableFormats(model)[0])}>
+                            <Download className="mr-2 h-4 w-4" />
+                            Download
+                          </DropdownMenuItem>
+                        ) : (
+                          <DropdownMenuSub>
+                            <DropdownMenuSubTrigger>
+                              <Download className="mr-2 h-4 w-4" />
+                              Download
+                            </DropdownMenuSubTrigger>
+                            <DropdownMenuSubContent>
+                              {availableFormats(model).map((fmt) => (
+                                <DropdownMenuItem key={fmt} onClick={() => handleDownload(model, fmt)}>
+                                  {fmt.toUpperCase()}
+                                </DropdownMenuItem>
+                              ))}
+                            </DropdownMenuSubContent>
+                          </DropdownMenuSub>
+                        )}
                         <DropdownMenuItem onClick={() => handleShare(model.id)}>
                           <Share2 className="mr-2 h-4 w-4" />
                           Share

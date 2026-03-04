@@ -26,9 +26,9 @@ export default function SettingsPage() {
 
   const getUserDisplayInfo = () => {
     return {
-      name: user?.displayName || user?.phoneNumber?.replace('+1', '') || 'User',
-      subtitle: user?.email || user?.phoneNumber?.replace('+1', ''),
-      photoURL: user?.photoURL
+      name: user?.displayName || user?.email || 'User',
+      subtitle: user?.email ?? '',
+      photoUrl: user?.photoUrl
     };
   };
 
@@ -78,9 +78,9 @@ export default function SettingsPage() {
               <h2 className="text-xl font-semibold">Profile</h2>
             </div>
             <div className="flex items-center gap-4">
-              {userInfo.photoURL ? (
+              {userInfo.photoUrl ? (
                 <img
-                  src={userInfo.photoURL}
+                  src={userInfo.photoUrl}
                   alt={userInfo.name}
                   className="h-20 w-20 rounded-full"
                 />

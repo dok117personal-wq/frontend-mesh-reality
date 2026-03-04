@@ -6,7 +6,6 @@ import { StarryBackground } from "@/components/magicui/starry-background";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { CheckIcon } from "lucide-react";
-import { useState } from "react";
 
 export const metadata: Metadata = {
   title: "Pricing | Mesh Reality",

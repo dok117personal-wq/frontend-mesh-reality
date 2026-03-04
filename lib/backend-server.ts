@@ -49,11 +49,11 @@ export async function getBackendSession(cookieHeader: string | null): Promise<Ba
  */
 export async function serverBackendFetch<T>(
   path: string,
-  options: RequestInit & { body?: unknown } = {},
+  options: Omit<RequestInit, "body"> & { body?: unknown } = {},
   cookieHeader: string | null,
   timeoutMs?: number
 ): Promise<T> {
-  const { body, ...rest } = options;
+  const { body, cache: _cache, ...rest } = options;
   const headers: HeadersInit = {
     ...(rest.headers as Record<string, string>),
     ...(cookieHeader ? { Cookie: cookieHeader } : {}),
@@ -69,12 +69,11 @@ export async function serverBackendFetch<T>(
     ...rest,
     headers,
     body: body !== undefined ? (typeof body === "string" ? body : JSON.stringify(body)) : undefined,
-    cache: "no-store",
     signal,
     dispatcher: BACKEND_FETCH_AGENT,
   });
   if (res.status === 204) return undefined as T;
-  const json: BackendResponse<T> = await res.json().catch(() => ({}));
+  const json = (await res.json().catch(() => ({}))) as BackendResponse<T>;
   const message = ("error" in json && json.error?.message) || (json as { error?: { message?: string } }).error?.message || res.statusText || "Request failed";
   if ("error" in json && json.error) {
     const err = new Error(message) as Error & { status?: number };

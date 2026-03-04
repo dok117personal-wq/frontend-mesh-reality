@@ -127,9 +127,9 @@ export default function DashboardPage() {
           <Card className="p-6">
             <div className="flex flex-col gap-4">
               <div className="flex items-center gap-4">
-                {user?.photoURL ? (
+                {user?.photoUrl ? (
                   <img
-                    src={user.photoURL}
+                    src={user.photoUrl}
                     alt={user.displayName || "Profile"}
                     className="w-12 h-12 rounded-full"
                   />
@@ -140,10 +140,10 @@ export default function DashboardPage() {
                 )}
                 <div>
                   <h2 className="text-xl font-bold">
-                    {user?.displayName || user?.phoneNumber?.replace('+1', '') || 'User'}
+                    {user?.displayName || user?.email || 'User'}
                   </h2>
                   <p className="text-sm text-muted-foreground">
-                    {user?.email || user?.phoneNumber?.replace('+1', '')}
+                    {user?.email ?? ''}
                   </p>
                 </div>
               </div>
