@@ -16,6 +16,8 @@ export interface Model {
   outputUrls?: Record<string, string>;
   status: "processing" | "completed" | "failed";
   isPublic: boolean;
+  /** True when this model appears in the list because it was shared with the current user (not owned by them). */
+  sharedWithMe?: boolean;
   createdAt: string;
   updatedAt: string;
   jobs?: Array<{
@@ -66,15 +68,47 @@ export async function downloadModel(
   return response.blob();
 }
 
-export async function shareModel(modelId: string): Promise<{
-  shareUrl: string;
-  isPublic: boolean;
-}> {
-  const data = await backendFetch<{ shareUrl: string; isPublic: boolean }>(
-    `/api/models/${modelId}/share`,
-    { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }
-  );
+export type ShareResult =
+  | { shareUrl: string; isPublic: true }
+  | { shareUrls: Array<{ email: string; shareUrl: string }>; isPublic: false };
+
+export async function shareModel(
+  modelId: string,
+  options: { type: "public" | "restricted"; emails?: string[] }
+): Promise<ShareResult> {
+  const data = await backendFetch<ShareResult>(`/api/models/${modelId}/share`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      type: options.type,
+      emails: options.type === "restricted" ? options.emails ?? [] : undefined,
+    }),
+  });
   return data!;
+}
+
+/** Get model by restricted share token (auth required; link was shared with current user's email). */
+export async function getModelByShareToken(token: string): Promise<Model> {
+  const data = await backendFetch<Model>(`/api/models/shared/s/${encodeURIComponent(token)}`);
+  return data!;
+}
+
+/** Download model via restricted share token (auth required). */
+export async function downloadByShareToken(
+  token: string,
+  format?: string
+): Promise<Blob> {
+  const url = new URL(`${API_URL}/api/models/shared/s/${encodeURIComponent(token)}/download`);
+  if (format) url.searchParams.set("format", format);
+  const response = await fetch(url.toString(), {
+    credentials: "include",
+    headers: { ...backendFetchHeaders() },
+  });
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to download: ${response.status} ${errorText}`);
+  }
+  return response.blob();
 }
 
 /** Public: get shared model by id. Works with or without auth (no credentials sent). */

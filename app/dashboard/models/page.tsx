@@ -15,7 +15,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useEffect, useState } from "react";
-import { Model, deleteModel, downloadModel, getUserModels, shareModel } from "@/lib/services/model-service";
+import { Model, deleteModel, downloadModel, getUserModels } from "@/lib/services/model-service";
+import { ShareDialog } from "@/components/dashboard/share-dialog";
 import { toast } from "sonner";
 
 export default function ModelsPage() {
@@ -24,6 +25,9 @@ export default function ModelsPage() {
   const [models, setModels] = useState<Model[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [shareModelId, setShareModelId] = useState<string | null>(null);
+  const [shareModelTitle, setShareModelTitle] = useState<string>("");
 
   useEffect(() => {
     loadModels();
@@ -66,22 +70,10 @@ export default function ModelsPage() {
     return keys.length ? keys : ["usdz"];
   };
 
-  const handleShare = async (modelId: string) => {
-    try {
-      const { shareUrl } = await shareModel(modelId);
-      try {
-        await navigator.clipboard.writeText(shareUrl);
-        toast.success("Share link copied to clipboard");
-      } catch {
-        toast.success("Share link ready", {
-          description: shareUrl,
-          action: { label: "Copy", onClick: () => navigator.clipboard.writeText(shareUrl) },
-        });
-      }
-    } catch (err) {
-      console.error("Error sharing model:", err);
-      toast.error("Failed to share model");
-    }
+  const handleShare = (model: Model) => {
+    setShareModelId(model.id);
+    setShareModelTitle(model.title || "Model");
+    setShareOpen(true);
   };
 
   const handleDelete = async (modelId: string) => {
@@ -193,7 +185,14 @@ export default function ModelsPage() {
                 <div className="p-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="font-semibold truncate">{model.title}</h3>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-semibold truncate">{model.title}</h3>
+                        {model.sharedWithMe && (
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+                            Shared with you
+                          </span>
+                        )}
+                      </div>
                       <p className="text-sm text-muted-foreground">
                         {model.fileType.toUpperCase()} • {model.status}
                       </p>
@@ -225,17 +224,21 @@ export default function ModelsPage() {
                             </DropdownMenuSubContent>
                           </DropdownMenuSub>
                         )}
-                        <DropdownMenuItem onClick={() => handleShare(model.id)}>
-                          <Share2 className="mr-2 h-4 w-4" />
-                          Share
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => handleDelete(model.id)}
-                          className="text-red-600"
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Delete
-                        </DropdownMenuItem>
+                        {!model.sharedWithMe && (
+                          <DropdownMenuItem onClick={() => handleShare(model)}>
+                            <Share2 className="mr-2 h-4 w-4" />
+                            Share
+                          </DropdownMenuItem>
+                        )}
+                        {!model.sharedWithMe && (
+                          <DropdownMenuItem
+                            onClick={() => handleDelete(model.id)}
+                            className="text-red-600"
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Delete
+                          </DropdownMenuItem>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
@@ -258,6 +261,13 @@ export default function ModelsPage() {
             </Button>
           </Card>
         )}
+
+        <ShareDialog
+          modelId={shareModelId ?? ""}
+          modelTitle={shareModelTitle}
+          open={shareOpen}
+          onClose={() => { setShareOpen(false); setShareModelId(null); }}
+        />
       </div>
     </div>
   );
