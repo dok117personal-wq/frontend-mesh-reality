@@ -14,6 +14,17 @@ This guide provides instructions for deploying the Mesh Reality 3D Generation sy
 - AWS S3 bucket
 - Firebase project
 
+## Fix: "Sign in with Google" redirects to localhost after deploy
+
+Auth is handled by the **backend**. The redirect URL after Google sign-in is built from the backend env var **`FRONTEND_URL`**.
+
+1. **Backend** (wherever it runs): set **`FRONTEND_URL`** to your deployed frontend URL (no trailing slash), e.g. `https://your-app.vercel.app`.  
+   - If this is unset or left as `http://localhost:3000`, users will be sent to localhost after signing in with Google.
+2. **Backend** **`CORS_ORIGIN`**: include your deployed frontend origin, e.g. `https://your-app.vercel.app`.
+3. **Supabase Dashboard** → Authentication → URL Configuration → **Redirect URLs**: add `https://your-app.vercel.app/auth/callback`.
+
+Redeploy or restart the backend after changing `FRONTEND_URL`.
+
 ## 1. Database Setup
 
 ### 1.1 Create Database

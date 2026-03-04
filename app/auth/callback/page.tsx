@@ -15,9 +15,12 @@ export default function AuthCallbackPage() {
 
   useEffect(() => {
     if (started.current) return;
+    // Supabase may send token in hash (#access_token=...) or, if hash is stripped, in query (?access_token=...)
     const hash = typeof window !== "undefined" ? window.location.hash : "";
-    const params = new URLSearchParams(hash.slice(1));
-    const accessToken = params.get("access_token");
+    const search = typeof window !== "undefined" ? window.location.search : "";
+    const fromHash = new URLSearchParams(hash.slice(1)).get("access_token");
+    const fromQuery = new URLSearchParams(search.slice(1)).get("access_token");
+    const accessToken = fromHash ?? fromQuery ?? null;
 
     if (!accessToken) {
       setError("No token received. Please try signing in again.");
