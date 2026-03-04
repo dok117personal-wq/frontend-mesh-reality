@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Box, MoreVertical, Download, Share2, Trash2, Loader2 } from "lucide-react";
+import { Box, MoreVertical, Download, Share2, Trash2, Loader2, UserMinus } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import {
   DropdownMenu,
@@ -15,7 +15,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useEffect, useState } from "react";
-import { Model, deleteModel, downloadModel, getUserModels } from "@/lib/services/model-service";
+import { Model, deleteModel, dismissSharedModel, downloadModel, getUserModels } from "@/lib/services/model-service";
 import { ShareDialog } from "@/components/dashboard/share-dialog";
 import { toast } from "sonner";
 
@@ -84,6 +84,17 @@ export default function ModelsPage() {
     } catch (err) {
       console.error("Error deleting model:", err);
       toast.error("Failed to delete model");
+    }
+  };
+
+  const handleRemoveShared = async (modelId: string) => {
+    try {
+      await dismissSharedModel(modelId);
+      setModels(models.filter((m) => m.id !== modelId));
+      toast.success("Removed from your list");
+    } catch (err) {
+      console.error("Error removing shared model:", err);
+      toast.error("Failed to remove");
     }
   };
 
@@ -230,7 +241,15 @@ export default function ModelsPage() {
                             Share
                           </DropdownMenuItem>
                         )}
-                        {!model.sharedWithMe && (
+                        {model.sharedWithMe ? (
+                          <DropdownMenuItem
+                            onClick={() => handleRemoveShared(model.id)}
+                            className="text-muted-foreground"
+                          >
+                            <UserMinus className="mr-2 h-4 w-4" />
+                            Remove
+                          </DropdownMenuItem>
+                        ) : (
                           <DropdownMenuItem
                             onClick={() => handleDelete(model.id)}
                             className="text-red-600"

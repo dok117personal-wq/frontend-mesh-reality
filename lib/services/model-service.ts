@@ -112,6 +112,15 @@ export async function revokeModelShare(modelId: string, email: string): Promise<
   });
 }
 
+/** Recipient: remove shared model from "Shared with you" list (dismiss). Does not delete the model. */
+export async function dismissSharedModel(modelId: string): Promise<void> {
+  await backendFetch("/api/models/shared/dismiss", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ modelId }),
+  });
+}
+
 /** Download model via restricted share token (auth required). */
 export async function downloadByShareToken(
   token: string,
