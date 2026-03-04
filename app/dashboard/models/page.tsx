@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Box, MoreVertical, Download, Share2, Trash2, Loader2, UserMinus } from "lucide-react";
+import { Box, MoreVertical, Download, Share2, Trash2, Loader2, UserMinus, CheckCircle2, CircleDashed, Sparkles } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import {
   DropdownMenu,
@@ -84,6 +84,14 @@ export default function ModelsPage() {
   };
 
   const displayFormats = formats.length ? formats : ["usdz", "obj", "stl", "glb"];
+
+  const formatStatus = (model: Model, format: string) => {
+    if (hasFormat(model, format)) return "ready" as const;
+    if (generatingFormat?.modelId === model.id && generatingFormat?.format === format) return "creating" as const;
+    return "not_ready" as const;
+  };
+
+  const canCreateFormat = (format: string) => ["obj", "stl"].includes(format.toLowerCase());
 
   const handleGenerateFormat = async (model: Model, format: string) => {
     setGeneratingFormat({ modelId: model.id, format });
@@ -300,7 +308,79 @@ export default function ModelsPage() {
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
-                  <p className="text-xs text-muted-foreground mt-2">
+                    {/* Format status board: each format with status and action (only when model is ready) */}
+                    {model.status === "completed" && (
+                      <div className="mt-4 pt-4 border-t">
+                        <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
+                          Export formats
+                        </h4>
+                        <div className="space-y-2">
+                          {displayFormats.map((fmt) => {
+                            const status = formatStatus(model, fmt);
+                            const ready = status === "ready";
+                            const creating = status === "creating";
+                            const notReady = status === "not_ready";
+                            const canCreate = canCreateFormat(fmt);
+                            return (
+                              <div
+                                key={fmt}
+                                className="flex items-center justify-between gap-2 py-1.5 px-2 rounded-md bg-muted/50"
+                              >
+                                <span className="text-sm font-medium">{fmt.toUpperCase()}</span>
+                                <div className="flex items-center gap-2 shrink-0">
+                                  {ready && (
+                                    <>
+                                      <span className="flex items-center gap-1 text-xs text-green-600 dark:text-green-500">
+                                        <CheckCircle2 className="h-3.5 w-3.5" />
+                                        Ready
+                                      </span>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-7 text-xs"
+                                        onClick={() => handleDownload(model, fmt)}
+                                      >
+                                        <Download className="h-3 w-3 mr-1" />
+                                        Download
+                                      </Button>
+                                    </>
+                                  )}
+                                  {creating && (
+                                    <span className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-500">
+                                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                      Creating…
+                                    </span>
+                                  )}
+                                  {notReady && (
+                                    <>
+                                      <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                                        <CircleDashed className="h-3.5 w-3.5" />
+                                        Not ready
+                                      </span>
+                                      {canCreate ? (
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="h-7 text-xs"
+                                          onClick={() => handleGenerateFormat(model, fmt)}
+                                        >
+                                          <Sparkles className="h-3 w-3 mr-1" />
+                                          Create
+                                        </Button>
+                                      ) : (
+                                        <span className="text-xs text-muted-foreground/70">—</span>
+                                      )}
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    <p className="text-xs text-muted-foreground mt-4">
                     Uploaded on {new Date(model.createdAt).toLocaleDateString()}
                   </p>
                 </div>
